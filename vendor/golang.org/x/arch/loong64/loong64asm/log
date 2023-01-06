@@ -1,0 +1,14 @@
+=== RUN   TestObjdumpLoong64TestDecodeGNUSyntaxdata
+totalTest: 388 total skip: 0 total error: 0
+    ext_test.go:178: 388 test cases, 0 expected mismatches, 0 failures; 51516 cases/second
+    ext_test.go:179: decoder coverage: 100.0%;
+--- PASS: TestObjdumpLoong64TestDecodeGNUSyntaxdata (0.01s)
+PASS
+ok  	golang.org/x/arch/loong64/loong64asm	0.014s
+=== RUN   TestObjdumpLoong64Manual
+totalTest: 32 total skip: 0 total error: 0
+    ext_test.go:178: 32 test cases, 0 expected mismatches, 0 failures; 7703 cases/second
+    ext_test.go:179: decoder coverage: 8.8%;
+--- PASS: TestObjdumpLoong64Manual (0.01s)
+PASS
+ok  	golang.org/x/arch/loong64/loong64asm	0.011s
