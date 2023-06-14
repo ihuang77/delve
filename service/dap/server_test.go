@@ -2398,7 +2398,7 @@ func TestGlobalScopeAndVariables(t *testing.T) {
 			[]onBreakpoint{{
 				// Stop at line 36
 				execute: func() {
-					if runtime.GOARCH == "386" && goversion.VersionAfterOrEqual(runtime.Version(), 1, 18) {
+					if (runtime.GOARCH == "386" && goversion.VersionAfterOrEqual(runtime.Version(), 1, 18)) || runtime.GOARCH == "loong64" {
 						client.StepInRequest(1)
 						client.ExpectStepInResponse(t)
 						client.ExpectStoppedEvent(t)
@@ -2470,7 +2470,7 @@ func TestRegistersScopeAndVariables(t *testing.T) {
 			[]onBreakpoint{{
 				// Stop at line 36
 				execute: func() {
-					if runtime.GOARCH == "386" && goversion.VersionAfterOrEqual(runtime.Version(), 1, 18) {
+					if (runtime.GOARCH == "386" && goversion.VersionAfterOrEqual(runtime.Version(), 1, 18)) || runtime.GOARCH == "loong64"  {
 						client.StepInRequest(1)
 						client.ExpectStepInResponse(t)
 						client.ExpectStoppedEvent(t)
@@ -2570,7 +2570,7 @@ func findPcReg(regs []dap.Variable) int {
 }
 
 func isPcReg(reg dap.Variable) bool {
-	pcRegNames := []string{"rip", "pc", "eip"}
+	pcRegNames := []string{"rip", "pc", "eip", "era"}
 	for _, name := range pcRegNames {
 		if name == strings.TrimSpace(reg.Name) {
 			return true

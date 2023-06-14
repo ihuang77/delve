@@ -15,9 +15,7 @@ var (
 	errType = fmt.Errorf("unknown type")
 )
 
-func loong64AsmDecode(asmInst *AsmInstruction, mem []byte, regs *op.DwarfRegisters,
-	memrw MemoryReadWriter, bi *BinaryInfo) error {
-
+func loong64AsmDecode(asmInst *AsmInstruction, mem []byte, regs *op.DwarfRegisters, memrw MemoryReadWriter, bi *BinaryInfo) error {
 	asmInst.Size = 4
 	asmInst.Bytes = mem[:asmInst.Size]
 
@@ -28,14 +26,22 @@ func loong64AsmDecode(asmInst *AsmInstruction, mem []byte, regs *op.DwarfRegiste
 	}
 
 	asmInst.Inst = (*loong64ArchInst)(&inst)
+	asmInst.Kind = OtherInstruction
 
 	switch inst.Op {
-	case loong64asm.BL:
-		//write return addr to ra
-		asmInst.Kind = CallInstruction
-
 	case loong64asm.JIRL:
-		asmInst.Kind = RetInstruction
+		rd, _ := inst.Args[0].(loong64asm.Reg)
+		rj, _ := inst.Args[1].(loong64asm.Reg)
+		if rd == loong64asm.R1 {
+			asmInst.Kind = CallInstruction
+		} else if rd == loong64asm.R0 && rj == loong64asm.R1 {
+			asmInst.Kind = RetInstruction
+		} else {
+			asmInst.Kind = JmpInstruction
+		}
+
+	case loong64asm.BL:
+		asmInst.Kind = CallInstruction
 
 	case loong64asm.BEQZ,
 		loong64asm.BNEZ,
@@ -62,45 +68,57 @@ func loong64AsmDecode(asmInst *AsmInstruction, mem []byte, regs *op.DwarfRegiste
 	return nil
 }
 
-func resolveCallArgLOONG64(inst *loong64asm.Inst, instAddr uint64, currentGoroutine bool,
-	regs *op.DwarfRegisters, mem MemoryReadWriter, bininfo *BinaryInfo) *Location {
+func resolveCallArgLOONG64(inst *loong64asm.Inst, instAddr uint64, currentGoroutine bool, regs *op.DwarfRegisters, mem MemoryReadWriter, bininfo *BinaryInfo) *Location {
 	var pc uint64
+	var err error
 
 	switch inst.Op {
-	// Format : INST offs
+	// Format: op offs26
+	// Target: offs26
 	case loong64asm.B, loong64asm.BL:
 		switch arg := inst.Args[0].(type) {
 		case loong64asm.OffsetSimm:
-			if arg.Imm < 0 {
-				pc = instAddr - uint64(arg.Imm*(-1))
-			} else {
-				pc = instAddr + uint64(arg.Imm)
-			}
+			pc = uint64(int64(instAddr) + int64(arg.Imm))
 		default:
 			return nil
 		}
 
-	//Format: inst rj,rd,offs16
+	// Format: op rd,rj,offs16
+	// Target: offs16
 	case loong64asm.BEQ,
 		loong64asm.BNE,
 		loong64asm.BLT,
 		loong64asm.BGE,
 		loong64asm.BLTU,
-		loong64asm.BGEU,
-		loong64asm.JIRL:
+		loong64asm.BGEU:
 
 		switch arg := inst.Args[2].(type) {
 		case loong64asm.OffsetSimm:
-			if arg.Imm < 0 {
-				pc = instAddr - uint64(arg.Imm*(-1))
-			} else {
-				pc = instAddr + uint64(arg.Imm)
-			}
+			pc = uint64(int64(instAddr) + int64(arg.Imm))
 		default:
 			return nil
 		}
 
-	//Format: inst rj,offs21
+	// Format: op rd,rj,offs16
+	// Target: rj + offs16
+	case loong64asm.JIRL:
+		if !currentGoroutine || regs == nil {
+			return nil
+		}
+		switch arg1 := inst.Args[1].(type) {
+		case loong64asm.Reg:
+			switch arg2 := inst.Args[2].(type) {
+			case loong64asm.OffsetSimm:
+				pc, err = bininfo.Arch.getAsmRegister(regs, int(arg1))
+				if err != nil {
+					return nil
+				}
+				pc = uint64(int64(pc) + int64(arg2.Imm))
+			}
+		}
+
+	// Format: op rj,offs21
+	// Target: offs21
 	case loong64asm.BEQZ,
 		loong64asm.BNEZ,
 		loong64asm.BCEQZ,
@@ -112,11 +130,7 @@ func resolveCallArgLOONG64(inst *loong64asm.Inst, instAddr uint64, currentGorout
 
 		switch arg := inst.Args[1].(type) {
 		case loong64asm.OffsetSimm:
-			if arg.Imm < 0 {
-				pc = instAddr - uint64(arg.Imm*(-1))
-			} else {
-				pc = instAddr + uint64(arg.Imm)
-			}
+			pc = uint64(int64(instAddr) + int64(arg.Imm))
 		default:
 			return nil
 		}
@@ -134,48 +148,43 @@ func resolveCallArgLOONG64(inst *loong64asm.Inst, instAddr uint64, currentGorout
 }
 
 // Possible stacksplit prologues are inserted by stacksplit in
-// $GOROOT/src/cmd/internal/obj/loong64/obj0.go.
+// $GOROOT/src/cmd/internal/obj/loong64/obj.go.
 var prologuesLOONG64 []opcodeSeq
 
 func init() {
-	var tinyStacksplit = opcodeSeq{
+	var tinyStacksplit = opcodeSeq{uint64(loong64asm.ADDI_D)}
+	var smallStacksplit = opcodeSeq{}
+	// inst:{uint64(loong64asm.SLTUI),
+	// 	uint64(loong64asm.BNE),
+	//	uint64(loong64asm.ADDI_D)}
+	var bigStacksplit = opcodeSeq{uint64(loong64asm.LU12I_W),
+		uint64(loong64asm.ORI),
 		uint64(loong64asm.SLTU),
-		uint64(loong64asm.JIRL),
-	}
+		uint64(loong64asm.BNE),
+		uint64(loong64asm.LU12I_W),
+		uint64(loong64asm.ORI),
+		uint64(loong64asm.ADD_D)}
 
-	var smallStacksplit = opcodeSeq{
-		uint64(loong64asm.ADD_W),
-		uint64(loong64asm.SLTU),
-		uint64(loong64asm.JIRL),
-	}
-
-	var bigStacksplit = opcodeSeq{
+	var unixGetG = opcodeSeq{uint64(loong64asm.LD_D)}
+	var tailPrologues = opcodeSeq{uint64(loong64asm.SLTU),
+		uint64(loong64asm.BNE),
 		uint64(loong64asm.OR),
-		uint64(loong64asm.BEQ),
-		uint64(loong64asm.ADD_W),
-		uint64(loong64asm.SUB_W),
-		uint64(loong64asm.SLTU),
-		uint64(loong64asm.JIRL),
-	}
-
-	var unixGetG = opcodeSeq{uint64(loong64asm.LD_W)}
+		uint64(loong64asm.BL),
+		uint64(loong64asm.BEQ)}
 
 	prologuesLOONG64 = make([]opcodeSeq, 0, 3)
-	for _, getG := range []opcodeSeq{unixGetG} {
-		for _, stacksplit := range []opcodeSeq{tinyStacksplit, smallStacksplit, bigStacksplit} {
-			prologue := make(opcodeSeq, 0, len(getG)+len(stacksplit))
-			prologue = append(prologue, getG...)
-			prologue = append(prologue, stacksplit...)
-			prologuesLOONG64 = append(prologuesLOONG64, prologue)
-		}
+	for _, stacksplit := range []opcodeSeq{tinyStacksplit, smallStacksplit, bigStacksplit} {
+		prologue := make(opcodeSeq, 0, len(unixGetG)+len(stacksplit)+len(tailPrologues))
+		prologue = append(prologue, unixGetG...)
+		prologue = append(prologue, stacksplit...)
+		prologue = append(prologue, tailPrologues...)
+		prologuesLOONG64 = append(prologuesLOONG64, prologue)
 	}
 }
 
 type loong64ArchInst loong64asm.Inst
 
-func (inst *loong64ArchInst) Text(flavour AssemblyFlavour, pc uint64,
-	symLookup func(uint64) (string, uint64)) string {
-
+func (inst *loong64ArchInst) Text(flavour AssemblyFlavour, pc uint64, symLookup func(uint64) (string, uint64)) string {
 	if inst == nil {
 		return "?"
 	}
@@ -183,11 +192,12 @@ func (inst *loong64ArchInst) Text(flavour AssemblyFlavour, pc uint64,
 	var text string
 
 	switch flavour {
-	case GoFlavour:
-		// Unsupport Goflavour: GoSyntax
-		text = "??"
-
+	case GNUFlavour:
+		text = loong64asm.GNUSyntax(loong64asm.Inst(*inst))
 	default:
+		// It should be disassembled to plan9, but loong64 
+		// doesn't support this at the moment, so it's better
+		// to use it as GNUSyntax.
 		text = loong64asm.GNUSyntax(loong64asm.Inst(*inst))
 	}
 

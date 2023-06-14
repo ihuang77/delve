@@ -1595,7 +1595,7 @@ func (bi *BinaryInfo) setGStructOffsetElf(image *Image, exe *elf.File, wg *sync.
 			bi.gStructOffset = 6 * uint64(bi.Arch.PtrSize())
 			return
 		}
-		bi.gStructOffset = tlsg.Value + uint64(bi.Arch.PtrSize()*6) + ((tls.Vaddr - uint64(bi.Arch.PtrSize()*6)) & (tls.Align - 1))
+		bi.gStructOffset = tlsg.Value + (tls.Vaddr & (tls.Align - 1))
 
 	default:
 		// we should never get here

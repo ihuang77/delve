@@ -15,6 +15,11 @@ Tests skipped by each supported backend:
 	* 4 not implemented
 * linux/386/pie skipped = 1
 	* 1 broken
+* loong64 skipped = 8
+	* 1 broken
+	* 3 broken - cgo stacktraces
+	* 1 broken - global variable symbolication
+	* 3 not implemented
 * pie skipped = 2
 	* 2 upstream issue - https://github.com/golang/go/issues/29322
 * windows skipped = 5

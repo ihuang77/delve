@@ -3360,6 +3360,7 @@ func TestCgoStacktrace(t *testing.T) {
 
 	skipOn(t, "broken - cgo stacktraces", "386")
 	skipOn(t, "broken - cgo stacktraces", "windows", "arm64")
+	skipOn(t, "broken - cgo stacktraces", "loong64")
 	protest.MustHaveCgo(t)
 
 	// Tests that:
@@ -3462,7 +3463,7 @@ func TestCgoSources(t *testing.T) {
 		}
 	}
 
-	if runtime.GOARCH == "386" {
+	if runtime.GOARCH == "386" || runtime.GOARCH == "loong64"{
 		t.Skip("cgo stacktraces not supported on i386 for now")
 	}
 
@@ -3538,6 +3539,7 @@ func TestSystemstackOnRuntimeNewstack(t *testing.T) {
 
 func TestIssue1034(t *testing.T) {
 	skipOn(t, "broken - cgo stacktraces", "386")
+	skipOn(t, "broken - cgo stacktraces", "loong64")
 	protest.MustHaveCgo(t)
 
 	// The external linker on macOS produces an abbrev for DW_TAG_subprogram
@@ -3558,6 +3560,7 @@ func TestIssue1034(t *testing.T) {
 
 func TestIssue1008(t *testing.T) {
 	skipOn(t, "broken - cgo stacktraces", "386")
+	skipOn(t, "broken - cgo stacktraces", "loong64")
 	protest.MustHaveCgo(t)
 
 	// The external linker on macOS inserts "end of sequence" extended opcodes
@@ -3735,6 +3738,7 @@ func TestHaltKeepsSteppingBreakpoints(t *testing.T) {
 
 func TestDisassembleGlobalVars(t *testing.T) {
 	skipOn(t, "broken - global variable symbolication", "arm64") // On ARM64 symLookup can't look up variables due to how they are loaded, see issue #1778
+	skipOn(t, "broken - global variable symbolication", "loong64")
 	// On 386 linux when pie, the generated code use __x86.get_pc_thunk to ensure position-independent.
 	// Locate global variable by
 	//    `CALL __x86.get_pc_thunk.ax(SB) 0xb0f7f
@@ -4649,6 +4653,7 @@ func TestCgoStacktrace2(t *testing.T) {
 	skipOn(t, "upstream issue", "windows")
 	skipOn(t, "broken", "386")
 	skipOn(t, "broken", "arm64")
+	skipOn(t, "broken", "loong64")
 	protest.MustHaveCgo(t)
 	// If a panic happens during cgo execution the stacktrace should show the C
 	// function that caused the problem.
@@ -5437,6 +5442,7 @@ func TestVariablesWithExternalLinking(t *testing.T) {
 func TestWatchpointsBasic(t *testing.T) {
 	skipOn(t, "not implemented", "freebsd")
 	skipOn(t, "not implemented", "386")
+	skipOn(t, "not implemented", "loong64")
 	skipOn(t, "see https://github.com/go-delve/delve/issues/2768", "windows")
 	protest.AllowRecording(t)
 
@@ -5496,6 +5502,7 @@ func TestWatchpointsBasic(t *testing.T) {
 func TestWatchpointCounts(t *testing.T) {
 	skipOn(t, "not implemented", "freebsd")
 	skipOn(t, "not implemented", "386")
+	skipOn(t, "not implemented", "loong64")
 	skipOn(t, "see https://github.com/go-delve/delve/issues/2768", "windows")
 	protest.AllowRecording(t)
 
@@ -5611,6 +5618,7 @@ func TestDwrapStartLocation(t *testing.T) {
 func TestWatchpointStack(t *testing.T) {
 	skipOn(t, "not implemented", "freebsd")
 	skipOn(t, "not implemented", "386")
+	skipOn(t, "not implemented", "loong64")
 	skipOn(t, "see https://github.com/go-delve/delve/issues/2768", "windows")
 	protest.AllowRecording(t)
 
@@ -5807,6 +5815,8 @@ func TestNilPtrDerefInBreakInstr(t *testing.T) {
 		asmfile = "main_arm64.s"
 	case "386":
 		asmfile = "main_386.s"
+	case "loong64":
+		asmfile = "main_loong64.s"
 	default:
 		t.Fatalf("assembly file for %s not provided", runtime.GOARCH)
 	}

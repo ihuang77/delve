@@ -19,7 +19,7 @@ func (thread *nativeThread) fpRegisters() ([]proc.Register, []byte, error) {
 	var err error
 	var loong64_fpregs linutil.LOONG64PtraceFpRegs
 
-	thread.dbp.execPtraceFunc(func() { loong64_fpregs.Fregs, err = ptraceGetFpRegset(thread.ID) })
+	thread.dbp.execPtraceFunc(func() { err = ptraceGetFpRegset(thread.ID, &loong64_fpregs) })
 	fpregs := loong64_fpregs.Decode()
 
 	if err != nil {

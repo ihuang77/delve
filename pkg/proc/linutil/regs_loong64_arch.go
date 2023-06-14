@@ -1,6 +1,7 @@
 package linutil
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/go-delve/delve/pkg/dwarf/op"
 	"github.com/go-delve/delve/pkg/dwarf/regnum"
@@ -43,38 +44,38 @@ func (r *LOONG64Registers) Slice(floatingPoint bool) ([]proc.Register, error) {
 		k string
 		v uint64
 	}{
-		{"R0", r.Regs.Regs[regnum.LOONG64_R0]},
-		{"R1", r.Regs.Regs[regnum.LOONG64_R1]},
-		{"R2", r.Regs.Regs[regnum.LOONG64_R2]},
-		{"R3", r.Regs.Regs[regnum.LOONG64_R3]},
-		{"R4", r.Regs.Regs[regnum.LOONG64_R4]},
-		{"R5", r.Regs.Regs[regnum.LOONG64_R5]},
-		{"R6", r.Regs.Regs[regnum.LOONG64_R6]},
-		{"R7", r.Regs.Regs[regnum.LOONG64_R7]},
-		{"R8", r.Regs.Regs[regnum.LOONG64_R8]},
-		{"R9", r.Regs.Regs[regnum.LOONG64_R9]},
-		{"R10", r.Regs.Regs[regnum.LOONG64_R10]},
-		{"R11", r.Regs.Regs[regnum.LOONG64_R11]},
-		{"R12", r.Regs.Regs[regnum.LOONG64_R12]},
-		{"R13", r.Regs.Regs[regnum.LOONG64_R13]},
-		{"R14", r.Regs.Regs[regnum.LOONG64_R14]},
-		{"R15", r.Regs.Regs[regnum.LOONG64_R15]},
-		{"R16", r.Regs.Regs[regnum.LOONG64_R16]},
-		{"R17", r.Regs.Regs[regnum.LOONG64_R17]},
-		{"R18", r.Regs.Regs[regnum.LOONG64_R18]},
-		{"R19", r.Regs.Regs[regnum.LOONG64_R19]},
-		{"R20", r.Regs.Regs[regnum.LOONG64_R20]},
-		{"R21", r.Regs.Regs[regnum.LOONG64_R21]},
-		{"R22", r.Regs.Regs[regnum.LOONG64_R22]},
-		{"R23", r.Regs.Regs[regnum.LOONG64_R23]},
-		{"R24", r.Regs.Regs[regnum.LOONG64_R24]},
-		{"R25", r.Regs.Regs[regnum.LOONG64_R25]},
-		{"R26", r.Regs.Regs[regnum.LOONG64_R26]},
-		{"R27", r.Regs.Regs[regnum.LOONG64_R27]},
-		{"R28", r.Regs.Regs[regnum.LOONG64_R28]},
-		{"R29", r.Regs.Regs[regnum.LOONG64_R29]},
-		{"R30", r.Regs.Regs[regnum.LOONG64_R30]},
-		{"R31", r.Regs.Regs[regnum.LOONG64_R31]},
+		{"R0", r.Regs.Regs[0]},
+		{"R1", r.Regs.Regs[1]},
+		{"R2", r.Regs.Regs[2]},
+		{"R3", r.Regs.Regs[3]},
+		{"R4", r.Regs.Regs[4]},
+		{"R5", r.Regs.Regs[5]},
+		{"R6", r.Regs.Regs[6]},
+		{"R7", r.Regs.Regs[7]},
+		{"R8", r.Regs.Regs[8]},
+		{"R9", r.Regs.Regs[9]},
+		{"R10", r.Regs.Regs[10]},
+		{"R11", r.Regs.Regs[11]},
+		{"R12", r.Regs.Regs[12]},
+		{"R13", r.Regs.Regs[13]},
+		{"R14", r.Regs.Regs[14]},
+		{"R15", r.Regs.Regs[15]},
+		{"R16", r.Regs.Regs[16]},
+		{"R17", r.Regs.Regs[17]},
+		{"R18", r.Regs.Regs[18]},
+		{"R19", r.Regs.Regs[19]},
+		{"R20", r.Regs.Regs[20]},
+		{"R21", r.Regs.Regs[21]},
+		{"R22", r.Regs.Regs[22]},
+		{"R23", r.Regs.Regs[23]},
+		{"R24", r.Regs.Regs[24]},
+		{"R25", r.Regs.Regs[25]},
+		{"R26", r.Regs.Regs[26]},
+		{"R27", r.Regs.Regs[27]},
+		{"R28", r.Regs.Regs[28]},
+		{"R29", r.Regs.Regs[29]},
+		{"R30", r.Regs.Regs[30]},
+		{"R31", r.Regs.Regs[31]},
 		{"ERA", r.Regs.Era},
 		{"BADV", r.Regs.Badv},
 	}
@@ -131,12 +132,12 @@ func (r *LOONG64Registers) TLS() uint64 {
 // GAddr returns the address of the G variable if it is known, 0 and false otherwise.
 func (r *LOONG64Registers) GAddr() (uint64, bool) {
 	// REGG is $r22,store the address of g
-	return r.Regs.Regs[22], !r.iscgo
+	return r.Regs.Regs[regnum.LOONG64_R22], !r.iscgo
 }
 
 // LR returns the link register.
 func (r *LOONG64Registers) LR() uint64 {
-	return r.Regs.Regs[1]
+	return r.Regs.Regs[regnum.LOONG64_LR]
 }
 
 // Copy returns a copy of these registers that is guaranteed not to change.
@@ -178,7 +179,7 @@ func (r *LOONG64Registers) SetReg(regNum uint64, reg *op.DwarfRegister) (fpchang
 
 	switch {
 	case regNum >= regnum.LOONG64_R0 && regNum <= regnum.LOONG64_R31:
-		r.Regs.Regs[regNum-regnum.LOONG64_R0] = reg.Uint64Val
+		r.Regs.Regs[regNum] = reg.Uint64Val
 		return false, nil
 
 	case regNum >= regnum.LOONG64_F0 && regNum <= regnum.LOONG64_F31:
@@ -215,6 +216,14 @@ func (fpregs *LOONG64PtraceFpRegs) Decode() (regs []proc.Register) {
 		value := fpregs.Fregs[i : i+8]
 		regs = proc.AppendBytesRegister(regs, name, value)
 	}
+
+	fccBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(fccBytes, uint64(fpregs.Fcc))
+	regs = proc.AppendBytesRegister(regs, "FCC0", fccBytes)
+
+	fcsrBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(fccBytes, uint32(fpregs.Fcsr))
+	regs = proc.AppendBytesRegister(regs, "FCSR", fcsrBytes)
 
 	return
 }

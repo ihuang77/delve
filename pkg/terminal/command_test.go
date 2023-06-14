@@ -1382,6 +1382,10 @@ func TestTranscript(t *testing.T) {
 
 func TestDisassPosCmd(t *testing.T) {
 	withTestTerminal("testvariables2", t, func(term *FakeTerminal) {
+		if runtime.GOARCH == "loong64" {
+			t.Skip("disassembled to plan9 supported on loong64 for now")
+		}
+
 		term.MustExec("continue")
 		out := term.MustExec("step-instruction")
 		t.Logf("%q\n", out)

@@ -12,6 +12,8 @@
 #else
 #define BREAKPOINT asm("brk 0;")
 #endif
+#elif __loongarch__
+#define BREAKPOINT asm("break 0;")
 #endif
 
 void helloworld_pt2(int x) {

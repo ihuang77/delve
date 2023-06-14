@@ -5,6 +5,7 @@ package native
 
 import (
 	"debug/elf"
+	"encoding/binary"
 	"syscall"
 	"unsafe"
 
@@ -51,9 +52,9 @@ func ptraceSetGRegs(pid int, regs *linutil.LOONG64PtraceRegs) (err error) {
 
 // ptraceGetFpRegset returns floating point registers of
 // the specified thread using PTRACE.
-func ptraceGetFpRegset(tid int) (fpregset []byte, err error) {
-	fpregs := make([]byte, _LOONG64_FPREGS_SIZE)
-	iov := sys.Iovec{Base: &fpregs[0], Len: uint64(_LOONG64_FPREGS_SIZE)}
+func ptraceGetFpRegset(tid int, fpregs *linutil.LOONG64PtraceFpRegs) (err error) {
+	fprBytes := make([]byte, _LOONG64_FPREGS_SIZE)
+	iov := sys.Iovec{Base: &fprBytes[0], Len: uint64(_LOONG64_FPREGS_SIZE)}
 
 	_, _, err = syscall.Syscall6(syscall.SYS_PTRACE, sys.PTRACE_SETREGSET, uintptr(tid),
 		uintptr(elf.NT_FPREGSET), uintptr(unsafe.Pointer(&iov)), 0, 0)
@@ -66,9 +67,11 @@ func ptraceGetFpRegset(tid int) (fpregset []byte, err error) {
 		err = nil
 	}
 
-	fpregset = fpregs[:iov.Len-16]
+	fpregs.Fregs = fprBytes[:iov.Len-16]
+	fpregs.Fcc = binary.LittleEndian.Uint64(fprBytes[iov.Len-16 : iov.Len-8])
+	fpregs.Fcsr = binary.LittleEndian.Uint32(fprBytes[iov.Len-8 : iov.Len-4])
 
-	return fpregset, err
+	return
 }
 
 // SetPC sets PC to the value specified by 'pc'.
@@ -140,8 +143,10 @@ func registers(thread *nativeThread) (proc.Registers, error) {
 		return nil, err
 	}
 
-	tp_tls := regs.Regs[2]
-
+	var tp_tls uint64
+	if thread.dbp.iscgo {
+		tp_tls = regs.Regs[2]
+	}
 	r := linutil.NewLOONG64Registers(&regs, thread.dbp.iscgo, tp_tls,
 		func(r *linutil.LOONG64Registers) error {
 			var floatLoadError error
